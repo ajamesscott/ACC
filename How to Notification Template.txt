@@ -1,0 +1,135 @@
+Custom Send Notification Function
+
+Variables Needed: (var = .... ;)
+
+	acaURL  //maybe don't include https://, because it can hyperlink in the template?
+		Example: aca.demo.accela.com/com
+		Location: INCLUDES_CUSTOM_GLOBALS
+		Add this variable to the custom script, because all the functions call it.
+		
+	agencyReplyEmail
+		Example: noreply@accela.com/com
+		Location: INCLUDES_CUSTOM_GLOBALS
+		Add this to the custom script
+		
+	contactTypesArray
+		Example: "Applicant", "Business Owner"
+		Location: Any contact types that need to receive the email
+		Put it in the standard choice
+		
+		In scripting:
+			var contactTypesArray = new Array("Applicant", "Property Owner", "Business Owner");
+		note 12:45 for contact object loop
+		
+	notificationTemplate
+		Example: MESSAGE_PERMIT_ISSUED
+		location: V360 Admin > Communication Manager > Notification Templates
+		In scripting:
+			var notificationTemplate = "MESSAGE_PERMIT_ISSUED";
+
+	reportName
+		Location: V360 Admin > Report Manager
+		
+	rptParams //For Ad Hoc reports, when using paramters (p1Value, p2Value, etc)
+		Example: rptParams.put("p1Value", capIDString);
+		
+
+	asiValue //to add an ASI value in MS3
+		Example: AInfo["Permit Note"]
+
+	
+	
+Example WTUA script
+
+WTUA:PERMITS/*/*/*
+matches(wfTask, "Permit Status", "Permit Issuance") && matches(wfStatus, "Issued") ^ sendPermitIssuedReportNotification();
+
+sendPermitIssuedReportNotification() is a custom function
+
+
+There is a function that can be added to make the reports attach to documents outside of report manager.
+	It's in Master Scripts 3.0, there is a work around for previous versions.
+	MS3 method looks like this: 
+		var attachResults = runReportAttach(capId, reportName, "p1Value", capIDString); //Note these are vars from above
+
+
+		
+Communication Manager set up (does not have to be set up to the exchange server per Plaistaid)
+
+	Required FIDS
+		0360 - Account Settings
+		0151 - Admin Alert and Rules (x2)
+		0134 - Admin Message General
+		0135 - Admin Message Supervisor
+		0361 - General Settings
+		0184 - Admin Content Customization
+		8492 - Communication List
+		8494 - Record Communication List
+		
+Notification Template parameters are in MS3, otherwise article called EMSE Notification Template Functions article
+There should be articles elsewhere to detail how to put these in MS2
+"Notification Template EMSE Functions"
+	examples:
+		getRecordParams4Notification(param)
+			$$altID$$
+			$$capName$$
+			$$capStatus$$
+			$$fileDate$$
+			$$workDesc$$
+			$$balanceDue$$
+			$$capTypeAlias$$
+		getPrimaryAddressLineParam4Notification(params)
+			$$addressLine$$
+		getPrimaryOwnerParams4Notification(params)
+			$$ownerFullName$$
+			$$ownerPhone$$
+		getACARecordParam4Notification(params, acaURL) --Deep link to the record on ACA
+			$$acaRecordURL$$
+		getACADocDownloadParam4Notification(params, acaURL, docModel) -- download the document directly from the record 
+			$$acaDocDownloadUrl$$
+		getContactParams4Notification(paramsArray, conType)
+			"$$" + conType + "LastName$$"
+			(many others)
+			... + "FirstName$$"
+			... + "Phone1$$"
+			... + "$$" for just the contact type
+
+
+Other MS3 notification Template functions: 
+	runReport4Email(itemCap, reportName, conObj, rParams, eParams, emailTemplate, moudle, mailFrom)
+	//runs a report and sends it in an email using a notification template
+	
+	runReport4EmailOrPrint((itemCap, reportName, conObj, rParams, eParams, emailTemplate, moudle, mailFrom)
+	//runs a report and sends it in an email and displays the report on the screen
+	
+	runReportAttach(itemCapId, aaReportName) (see minute 32 or so)
+	//runs a report and attaches it to the documents tab on a record **SEE SAVING REPORTS USING SCRIPTING
+	//Title: Enhancing Security Control on EMSE Methods (14ACC-10181) Affects 7.3.3 SP1 or higher
+	//There is a security feature from 7.3.1 that might make it not work correctly
+	//A setting has to be updated to allow the EMSE to store them
+	//This feature impacts the behavior of the exsiting EMSE scripts that call to the writeToFile, deleteFile and/or newInstance methods.
+	//Perform following configuration to allow saving documents to docs tab from an EMSE scrupt:
+		//Admin Configuration Details: To Implement the Security Control:
+			1. On the application server machine, navigate to \av.biz\conf\av path an open the ServerConfig.properties file
+			2. Add the following code to the ServerConfig.properties file:
+				av.emse.file.path= (specify a file path in the application server)
+				av.emse.file.path defines the file path on the server that the writeToFile method adds files to or the
+				deleteFile method deletes files from
+			For example: if you want to set the file path as D:\emse\temp, add the following code:
+			# UtilScript file path
+			av.emse.file.path=D:\\emse\\temp
+			3. Create a file named "EMSESecurityConfig.properties" under \av.biz\conf\av\
+			Note, the file name is case sensitive
+			4. Add the following code in the EMSESecurityConfig.properties file:
+				emse.class.whitelist={class #1, class#2}
+				emse.class.whitelist defines the calsses that can be instantiated through the newInstance method
+			For example, if you add the folowing code in the file, the newInstance method can create
+				com.accela.* and java.util* instances:
+				emse.class.whitelist=com.accela.*, java.util.*
+			5.Restart the server services for the changes to take effect
+	
+	sendNotification(emailFrom, emailTo, emailCC, templateName, params, reportFile)
+	//sends an email using a notification template
+	
+	generateReport(itemCap, reportName, module, parameters)
+	//generates and returns the report file which can be attached to an email
